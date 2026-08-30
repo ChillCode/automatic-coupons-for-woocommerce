@@ -1,0 +1,102 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Auto Coupons for WooCommerce\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-07-28 22:55+0000\n"
+"PO-Revision-Date: 2026-07-01 13:00+0000\n"
+"Last-Translator: \n"
+"Language-Team: Spanish (Spain)\n"
+"Language: es_ES\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Loco https://localise.biz/\n"
+"X-Loco-Version: 2.6.11; wp-6.6.1\n"
+"X-Domain: automatic-coupons-for-woocommerce"
+
+#. Text to show when cart coupons are applied to cart, %1$s can be amount or percentage quantity.
+#: includes/class-autocoupons.php:545
+#, php-format
+msgid "A %1$s discount has been applied to the cart."
+msgstr "Se ha aplicado un descuento de %1$s al carrito."
+
+#. Text to show when product coupons are applied to products, %1$s can be amount or percentage quantity and %2$s the name of the product.
+#: includes/class-autocoupons.php:562
+#, php-format
+msgid "A %1$s discount has been applied to the following product %2$s."
+msgstr "Se ha aplicado un descuento de %1$s al siguiente producto %2$s."
+
+#: includes/class-autocoupons.php:294
+msgid "Allow automatic application"
+msgstr "Permitir aplicación automática"
+
+#: includes/class-autocoupons.php:258
+msgid "Allow coupons to apply automatically"
+msgstr "Permitir que los cupones se apliquen automáticamente"
+
+#: includes/class-autocoupons.php:295
+msgid "Apply this coupon automatically as a discount."
+msgstr "Aplica este cupón automáticamente como descuento."
+
+#. Description of the plugin
+#| msgid "Apply WooCommerce coupons automatically as a discount."
+msgid "Apply WooCommerce coupons automatically as discounts."
+msgstr "Aplique cupones de WooCommerce automáticamente como descuento."
+
+#. Name of the plugin
+msgid "Auto Coupons for WooCommerce"
+msgstr "Cupones automáticos para WooCommerce"
+
+#: includes/class-autocoupons.php:74
+msgid ""
+"Auto Coupons for WooCommerce requires WooCommerce to be installed and active."
+msgstr ""
+"Los cupones automáticos para WooCommerce requieren que WooCommerce esté "
+"instalado y activo."
+
+#. Author of the plugin
+msgid "Chillcode"
+msgstr "Chillcode"
+
+#: includes/class-autocoupons.php:259
+msgid "Coupons can be applied automatically without user interaction."
+msgstr ""
+"Los cupones se pueden aplicar automáticamente sin interacción del usuario."
+
+#: includes/class-autocoupons.php:401
+msgid "Discount type"
+msgstr "Tipo de descuento"
+
+#. Author URI of the plugin
+msgid "https://github.com/chillcode/"
+msgstr "https://github.com/chillcode/"
+
+#. URI of the plugin
+msgid "https://github.com/chillcode/automatic-coupons-for-woocommerce"
+msgstr "https://github.com/chillcode/automatic-coupons-for-woocommerce"
+
+#: includes/class-autocoupons.php:268
+msgid "Remove all coupons already applied automatically to carts"
+msgstr "Elimina todos los cupones ya aplicados automáticamente a los carritos"
+
+#: includes/class-autocoupons.php:269
+msgid ""
+"Remove all coupons already applied automatically to carts when \"Allow "
+"coupons to apply automatically\" is unchecked."
+msgstr ""
+"Elimina todos los cupones aplicados automáticamente a los carritos cuando la "
+"opción «Permitir que los cupones se apliquen automáticamente» esté "
+"desactivada."
+
+#: includes/class-autocoupons.php:249
+msgid "Remove all coupons already applied to carts"
+msgstr "Eliminar todos los cupones ya aplicados a los carritos"
+
+#: includes/class-autocoupons.php:250
+msgid ""
+"Remove all coupons already applied to carts when \"Enable the use of coupon "
+"codes\" is unchecked."
+msgstr ""
+"Elimina todos los cupones ya aplicados a los carritos cuando se desmarca la "
+"opción \"Habilitar el uso de códigos de cupón\"."
