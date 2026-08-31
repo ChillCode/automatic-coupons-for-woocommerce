@@ -27,13 +27,6 @@ final class AutoCoupons {
 	private $acwc_available_coupons = array();
 
 	/**
-	 * WC_Coupon array.
-	 *
-	 * @var WC_Coupon[]
-	 */
-	private $acwc_coupon_objects = array();
-
-	/**
 	 * Options.
 	 *
 	 * @var array
@@ -346,12 +339,6 @@ final class AutoCoupons {
 	 * @return bool
 	 */
 	public function auto_coupons_enabled(): bool {
-		/**
-		 * Enable automatic coupons.
-		 *
-		 * @since 1.0.2
-		 */
-
 		return apply_filters( 'woocommerce_enable_auto_coupons', true === filter_var( get_option( 'acwc_enable_auto_coupons' ), FILTER_VALIDATE_BOOLEAN, array( 'default' => false ) ) );
 	}
 
@@ -363,19 +350,6 @@ final class AutoCoupons {
 	 */
 	private function coupon_is_autoapply( WC_Coupon $coupon ): bool {
 		return ( filter_var( $coupon->get_meta( '_acwc_discount_autoapply', true ), FILTER_VALIDATE_BOOLEAN ) ? true : false );
-	}
-
-	/**
-	 * Get coupon by id.
-	 *
-	 * @param int $coupon_id Coupon ID.
-	 * @return WC_Coupon
-	 */
-	private function get_coupon_object( int $coupon_id ): WC_Coupon {
-		if ( ! isset( $this->acwc_coupon_objects[ $coupon_id ] ) ) {
-			$this->acwc_coupon_objects[ $coupon_id ] = new WC_Coupon( $coupon_id );
-		}
-		return $this->acwc_coupon_objects[ $coupon_id ];
 	}
 
 	/**
@@ -715,7 +689,7 @@ final class AutoCoupons {
 		$coupons_is_cart_page = is_cart();
 
 		foreach ( $this->acwc_available_coupons as $coupon_id ) {
-			$coupon      = $this->get_coupon_object( $coupon_id );
+			$coupon      = new WC_Coupon( $coupon_id );
 			$coupon_code = $coupon->get_code();
 
 			/** Remove all the auto coupons to prevent updated or previously applied coupons. */
