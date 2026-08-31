@@ -18,6 +18,7 @@ use wpdb;
  * AutoCoupons class.
  */
 final class AutoCoupons {
+
 	/**
 	 * Coupons available as discounts.
 	 *
@@ -92,18 +93,50 @@ final class AutoCoupons {
 			return;
 		}
 
-		add_action( 'wp', array( $this, 'init_wp' ) );
-		add_action( 'current_screen', array( $this, 'current_screen' ) );
+		add_action(
+			'wp',
+			array( $this, 'init_wp' )
+		);
+
+		add_action(
+			'current_screen',
+			array( $this, 'current_screen' )
+		);
 
 		if ( is_admin() ) {
-			add_filter( 'woocommerce_general_settings', array( $this, 'woocommerce_general_settings' ) );
+			add_filter(
+				'woocommerce_general_settings',
+				array( $this, 'woocommerce_general_settings' )
+			);
 
-			add_action( 'woocommerce_coupon_options_save', array( $this, 'woocommerce_coupon_options_save' ), 10, 1 );
+			add_action(
+				'woocommerce_coupon_options_save',
+				array( $this, 'woocommerce_coupon_options_save' ),
+				10,
+				1
+			);
 
-			add_action( 'deleted_post', array( $this, 'prepare_cache_invalidation' ) );
-			add_action( 'trashed_post', array( $this, 'prepare_cache_invalidation' ) );
-			add_action( 'untrashed_post', array( $this, 'prepare_cache_invalidation' ) );
-			add_action( 'transition_post_status', array( $this, 'transition_post_status' ), 10, 3 );
+			add_action(
+				'deleted_post',
+				array( $this, 'cache_invalidation' )
+			);
+
+			add_action(
+				'trashed_post',
+				array( $this, 'cache_invalidation' )
+			);
+
+			add_action(
+				'untrashed_post',
+				array( $this, 'cache_invalidation' )
+			);
+
+			add_action(
+				'transition_post_status',
+				array( $this, 'transition_post_status_cache_invalidation' ),
+				10,
+				3
+			);
 		}
 	}
 
@@ -113,7 +146,7 @@ final class AutoCoupons {
 	 * @param int $post_id Post ID.
 	 * @return void
 	 */
-	public function prepare_cache_invalidation( int $post_id ): void {
+	public function cache_invalidation( int $post_id ): void {
 		if ( 'shop_coupon' === get_post_type( $post_id ) ) {
 			self::invalidate_automated_coupons_cache();
 		}
@@ -127,11 +160,7 @@ final class AutoCoupons {
 	 * @param \WP_Post $post Post.
 	 * @return void
 	 */
-	public function transition_post_status(
-		string $new_status,
-		string $old_status,
-		\WP_Post $post
-	): void {
+	public function transition_post_status_cache_invalidation( string $new_status, string $old_status, \WP_Post $post ): void {
 		if ( 'shop_coupon' === $post->post_type && $new_status !== $old_status ) {
 			self::invalidate_automated_coupons_cache();
 		}
@@ -148,8 +177,15 @@ final class AutoCoupons {
 		}
 
 		if ( ! wc_coupons_enabled() || ! $this->auto_coupons_enabled() ) {
-			add_action( 'woocommerce_before_cart', array( $this, 'remove_coupons_if_disabled' ) );
-			add_action( 'woocommerce_before_checkout_process', array( $this, 'remove_coupons_if_disabled' ) );
+			add_action(
+				'woocommerce_before_cart',
+				array( $this, 'remove_coupons_if_disabled' )
+			);
+
+			add_action(
+				'woocommerce_before_checkout_process',
+				array( $this, 'remove_coupons_if_disabled' )
+			);
 
 			return;
 		}
@@ -157,17 +193,52 @@ final class AutoCoupons {
 		$this->acwc_available_coupons = $this->get_automated_coupons();
 
 		if ( ! empty( $this->acwc_available_coupons ) ) {
+			add_filter(
+				'woocommerce_coupon_error',
+				array( $this, 'woocommerce_coupon_error' ),
+				10,
+				3
+			);
 
-			add_filter( 'woocommerce_coupon_error', array( $this, 'woocommerce_coupon_error' ), 10, 3 );
-			add_filter( 'woocommerce_coupon_message', array( $this, 'woocommerce_coupon_message' ), 10, 3 );
+			add_filter(
+				'woocommerce_coupon_message',
+				array( $this, 'woocommerce_coupon_message' ),
+				10,
+				3
+			);
 
-			add_action( 'woocommerce_after_calculate_totals', array( $this, 'woocommerce_after_calculate_totals' ) );
-			add_action( 'woocommerce_after_checkout_validation', array( $this, 'woocommerce_after_checkout_validation' ), -1, 0 );
+			add_action(
+				'woocommerce_after_calculate_totals',
+				array( $this, 'woocommerce_after_calculate_totals' )
+			);
 
-			add_filter( 'woocommerce_cart_totals_coupon_label', array( $this, 'woocommerce_cart_totals_coupon_label' ), 10, 2 );
-			add_filter( 'woocommerce_cart_totals_coupon_html', array( $this, 'woocommerce_cart_totals_coupon_html' ), 10, 3 );
+			add_action(
+				'woocommerce_after_checkout_validation',
+				array( $this, 'woocommerce_after_checkout_validation' ),
+				-1,
+				0
+			);
 
-			add_filter( 'woocommerce_cart_item_subtotal', array( $this, 'woocommerce_cart_item_subtotal' ), 10, 3 );
+			add_filter(
+				'woocommerce_cart_totals_coupon_label',
+				array( $this, 'woocommerce_cart_totals_coupon_label' ),
+				10,
+				2
+			);
+
+			add_filter(
+				'woocommerce_cart_totals_coupon_html',
+				array( $this, 'woocommerce_cart_totals_coupon_html' ),
+				10,
+				3
+			);
+
+			add_filter(
+				'woocommerce_cart_item_subtotal',
+				array( $this, 'woocommerce_cart_item_subtotal' ),
+				10,
+				3
+			);
 		}
 	}
 
@@ -186,7 +257,7 @@ final class AutoCoupons {
 
 		if ( current_user_can( 'manage_options' ) ) {
 			if (
-			'shop_coupon' === $current_screen->id && $this->auto_coupons_enabled()
+				'shop_coupon' === $current_screen->id && $this->auto_coupons_enabled()
 			) {
 				add_action(
 					'woocommerce_coupon_options',
@@ -219,7 +290,10 @@ final class AutoCoupons {
 			return;
 		}
 
-		if ( apply_filters( 'acwc_remove_coupons', filter_var( get_option( 'acwc_remove_coupons' ), FILTER_VALIDATE_BOOLEAN, array( 'default' => false ) ) ) ) {
+		if ( apply_filters(
+			'acwc_remove_coupons',
+			filter_var( get_option( 'acwc_remove_coupons' ), FILTER_VALIDATE_BOOLEAN, array( 'default' => false ) )
+		) ) {
 			// Remove all coupons and calculate totals.
 			$wc_cart->remove_coupons();
 			$wc_cart->calculate_totals();
@@ -227,11 +301,18 @@ final class AutoCoupons {
 			return;
 		}
 
-		if ( apply_filters( 'acwc_remove_auto_coupons', filter_var( get_option( 'acwc_remove_auto_coupons' ), FILTER_VALIDATE_BOOLEAN, array( 'default' => false ) ) ) ) {
+		if ( apply_filters(
+			'acwc_remove_auto_coupons',
+			filter_var( get_option( 'acwc_remove_auto_coupons' ), FILTER_VALIDATE_BOOLEAN, array( 'default' => false ) )
+		) ) {
 			// Remove only auto applied coupons.
 
 			/** Remove action temporally to prevent calculating totals on each removed coupon */
-			remove_action( 'woocommerce_removed_coupon', array( $wc_cart, 'calculate_totals' ), 20 );
+			remove_action(
+				'woocommerce_removed_coupon',
+				array( $wc_cart, 'calculate_totals' ),
+				20
+			);
 
 			$coupons_removed = false;
 
@@ -247,7 +328,12 @@ final class AutoCoupons {
 					$wc_cart->calculate_totals();
 				}
 			} finally {
-				add_action( 'woocommerce_removed_coupon', array( $wc_cart, 'calculate_totals' ), 20, 0 );
+				add_action(
+					'woocommerce_removed_coupon',
+					array( $wc_cart, 'calculate_totals' ),
+					20,
+					0
+				);
 			}
 		}
 	}
@@ -264,7 +350,7 @@ final class AutoCoupons {
 		 * Enable automatic coupons.
 		 *
 		 * @since 1.0.2
-		*/
+		 */
 
 		return apply_filters( 'woocommerce_enable_auto_coupons', true === filter_var( get_option( 'acwc_enable_auto_coupons' ), FILTER_VALIDATE_BOOLEAN, array( 'default' => false ) ) );
 	}
@@ -322,14 +408,14 @@ final class AutoCoupons {
 			'fields'           => 'ids',
 			'post_type'        => 'shop_coupon',
 			'post_status'      => 'publish',
-		// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
-																																																																																																																																																																																																																																																											'meta_query' => array(
-																																																																																																																																																																																																																																																												'relation' => 'AND',
-																																																																																																																																																																																																																																																												array(
-																																																																																																																																																																																																																																																													'key' => '_acwc_discount_autoapply',
-																																																																																																																																																																																																																																																													'value' => 1,
-																																																																																																																																																																																																																																																												),
-																																																																																																																																																																																																																																																											),
+			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+			'meta_query'       => array(
+				'relation' => 'AND',
+				array(
+					'key'   => '_acwc_discount_autoapply',
+					'value' => 1,
+				),
+			),
 		);
 
 		$get_automated_coupons = get_posts( $args );
@@ -429,8 +515,8 @@ final class AutoCoupons {
 	 */
 	public function woocommerce_coupon_options_save( int $coupon_id ): void {
 		if (
-		! check_ajax_referer( 'woocommerce_save_data', 'woocommerce_meta_nonce', false ) ||
-		! current_user_can( 'edit_post', $coupon_id )
+			! check_ajax_referer( 'woocommerce_save_data', 'woocommerce_meta_nonce', false ) ||
+			! current_user_can( 'edit_post', $coupon_id )
 		) {
 			return;
 		}
@@ -475,9 +561,9 @@ final class AutoCoupons {
 		$line_total    = (float) $cart_item['line_total'];
 
 		if (
-		empty( $this->acwc_applied_coupons[ $cart_item_key ] ) &&
-		wc_format_decimal( $line_subtotal, wc_get_price_decimals() ) ===
-		wc_format_decimal( $line_total, wc_get_price_decimals() )
+			empty( $this->acwc_applied_coupons[ $cart_item_key ] ) &&
+			wc_format_decimal( $line_subtotal, wc_get_price_decimals() ) ===
+			wc_format_decimal( $line_total, wc_get_price_decimals() )
 		) {
 			return $subtotal;
 		}
@@ -758,16 +844,14 @@ final class AutoCoupons {
 	 *
 	 * @return void
 	 */
-	public static function activate(): void {
-	}
+	public static function activate(): void {}
 
 	/**
 	 * Deactivate plugin.
 	 *
 	 * @return void
 	 */
-	public static function deactivate(): void {
-	}
+	public static function deactivate(): void {}
 
 	/**
 	 * Uninstall plugin.
