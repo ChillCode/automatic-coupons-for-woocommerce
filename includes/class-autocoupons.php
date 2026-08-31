@@ -24,14 +24,14 @@ final class AutoCoupons {
 	 *
 	 * @var int[]
 	 */
-	private $acwc_available_coupons = array();
+	private array $acwc_available_coupons = array();
 
 	/**
 	 * Options.
 	 *
-	 * @var array
+	 * @var string[]
 	 */
-	private static $acwc_options = array(
+	private static array $acwc_options = array(
 		'acwc_enable_auto_coupons',
 		'acwc_remove_auto_coupons',
 		'acwc_remove_coupons',
@@ -42,7 +42,7 @@ final class AutoCoupons {
 	 *
 	 * @var array<array<string>>
 	 */
-	private $acwc_applied_coupons = array();
+	private array $acwc_applied_coupons = array();
 
 	/**
 	 * Singleton instance.
@@ -134,7 +134,7 @@ final class AutoCoupons {
 	}
 
 	/**
-	 * Invalidate coupons when deleting, trashing or untrashing them.
+	 * Invalidate coupons cache when deleting, trashing or untrashing them.
 	 *
 	 * @param int $post_id Post ID.
 	 * @return void
@@ -154,7 +154,10 @@ final class AutoCoupons {
 	 * @return void
 	 */
 	public function transition_post_status_cache_invalidation( string $new_status, string $old_status, \WP_Post $post ): void {
-		if ( 'shop_coupon' === $post->post_type && $new_status !== $old_status ) {
+		if (
+			'shop_coupon' === $post->post_type &&
+			$new_status !== $old_status
+		) {
 			self::invalidate_automated_coupons_cache();
 		}
 	}
@@ -277,6 +280,11 @@ final class AutoCoupons {
 			return;
 		}
 
+		/**
+		 * Applied coupons.
+		 *
+		 * @var string[] $applied_coupons
+		 * */
 		$applied_coupons = $wc_cart->get_applied_coupons();
 
 		if ( empty( $applied_coupons ) ) {
@@ -310,7 +318,9 @@ final class AutoCoupons {
 			$coupons_removed = false;
 
 			try {
-				foreach ( $applied_coupons as $key => $coupon_code ) {
+				foreach ( $applied_coupons as $coupon_code ) {
+					$coupon_code = wc_format_coupon_code( $coupon_code );
+
 					if ( $this->coupon_is_autoapply( new WC_Coupon( $coupon_code ) ) ) {
 						$wc_cart->remove_coupon( $coupon_code );
 						$coupons_removed = true;
@@ -339,7 +349,7 @@ final class AutoCoupons {
 	 * @return bool
 	 */
 	public function auto_coupons_enabled(): bool {
-		return apply_filters( 'woocommerce_enable_auto_coupons', true === filter_var( get_option( 'acwc_enable_auto_coupons' ), FILTER_VALIDATE_BOOLEAN, array( 'default' => false ) ) );
+		return (bool) apply_filters( 'woocommerce_enable_auto_coupons', true === filter_var( get_option( 'acwc_enable_auto_coupons' ), FILTER_VALIDATE_BOOLEAN, array( 'default' => false ) ) );
 	}
 
 	/**
@@ -495,9 +505,16 @@ final class AutoCoupons {
 			return;
 		}
 
-		$discount_autoapply = ( filter_input( INPUT_POST, 'discount_autoapply', FILTER_VALIDATE_BOOLEAN ) ) ? true : false;
-
-		update_post_meta( $coupon_id, '_acwc_discount_autoapply', $discount_autoapply );
+		update_post_meta(
+			$coupon_id,
+			'_acwc_discount_autoapply',
+			filter_input(
+				INPUT_POST,
+				'discount_autoapply',
+				FILTER_VALIDATE_BOOLEAN,
+				array( 'default' => false )
+			)
+		);
 
 		$this->invalidate_automated_coupons_cache();
 	}
@@ -536,8 +553,7 @@ final class AutoCoupons {
 
 		if (
 			empty( $this->acwc_applied_coupons[ $cart_item_key ] ) &&
-			wc_format_decimal( $line_subtotal, wc_get_price_decimals() ) ===
-			wc_format_decimal( $line_total, wc_get_price_decimals() )
+			wc_format_decimal( $line_subtotal, wc_get_price_decimals() ) === wc_format_decimal( $line_total, wc_get_price_decimals() )
 		) {
 			return $subtotal;
 		}
@@ -612,8 +628,8 @@ final class AutoCoupons {
 	 * - 112: Maximum spend limit met.
 	 * - 113: Excluded products.
 	 * - 114: Excluded categories.
-	 * - 115:
-	 * - 116:
+	 * - 115: Usage limit stuck.
+	 * - 116: Guest usage limit stuck.
 	 *
 	 * @param  string    $error_message Message.
 	 * @param  int       $error_code Code.
@@ -621,7 +637,16 @@ final class AutoCoupons {
 	 * @return string
 	 */
 	public function woocommerce_coupon_error( $error_message, $error_code, $coupon ) {
+		/**
+		 * Ignore errors we don't want to show on auto coupons application.
+		 */
 		if ( $this->coupon_is_autoapply( $coupon ) ) {
+			$error_message = sprintf(
+				/* translators: %s: coupon code */
+				esc_html__( 'Sorry, it seems the discount "%s" is no longer valid and has been removed from your order.', 'automatic-coupons-for-woocommerce' ),
+				esc_html( $error_code )
+			);
+
 			switch ( $error_code ) {
 				case 100:
 				case 101:
@@ -798,9 +823,9 @@ final class AutoCoupons {
 	/**
 	 * Wrapper for delete_metadata_by_mid.
 	 *
-	 * @param mixed $mid ID for a specific meta row.
+	 * @param int $mid ID for a specific meta row.
 	 */
-	private static function delete_metadata_by_mid( $mid ): void {
+	private static function delete_metadata_by_mid( int $mid ): void {
 		delete_metadata_by_mid( 'post', $mid );
 	}
 
@@ -814,7 +839,7 @@ final class AutoCoupons {
 	}
 
 	/**
-	 * Activate plugin, keep for meta update.
+	 * Activate plugin.
 	 *
 	 * @return void
 	 */
