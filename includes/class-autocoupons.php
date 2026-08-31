@@ -208,20 +208,46 @@ final class AutoCoupons {
 	 */
 	public function remove_coupons_if_disabled(): void {
 		$wc_cart = WC()->cart;
-		if ( null !== $wc_cart ) {
-			if ( ! empty( $wc_cart->get_applied_coupons() ) ) {
-				if ( apply_filters( 'acwc_remove_coupons', 'yes' === get_option( 'acwc_remove_coupons' ) ) ) {
-					// Remove all coupons and calculate totals.
-					$wc_cart->remove_coupons();
-					$wc_cart->calculate_totals();
-				} elseif ( apply_filters( 'acwc_remove_auto_coupons', 'yes' === get_option( 'acwc_remove_auto_coupons' ) ) ) {
-					// Remove only auto applied coupons.
-					foreach ( $wc_cart->get_applied_coupons() as $coupon_code ) {
-						if ( $this->coupon_is_autoapply( new WC_Coupon( $coupon_code ) ) ) {
-							$wc_cart->remove_coupon( $coupon_code );
-						}
+
+		if ( null === $wc_cart ) {
+			return;
+		}
+
+		$applied_coupons = $wc_cart->get_applied_coupons();
+
+		if ( empty( $applied_coupons ) ) {
+			return;
+		}
+
+		if ( apply_filters( 'acwc_remove_coupons', filter_var( get_option( 'acwc_remove_coupons' ), FILTER_VALIDATE_BOOLEAN, array( 'default' => false ) ) ) ) {
+			// Remove all coupons and calculate totals.
+			$wc_cart->remove_coupons();
+			$wc_cart->calculate_totals();
+
+			return;
+		}
+
+		if ( apply_filters( 'acwc_remove_auto_coupons', filter_var( get_option( 'acwc_remove_auto_coupons' ), FILTER_VALIDATE_BOOLEAN, array( 'default' => false ) ) ) ) {
+			// Remove only auto applied coupons.
+
+			/** Remove action temporally to prevent calculating totals on each removed coupon */
+			remove_action( 'woocommerce_removed_coupon', array( $wc_cart, 'calculate_totals' ), 20 );
+
+			$coupons_removed = false;
+
+			try {
+				foreach ( $applied_coupons as $key => $coupon_code ) {
+					if ( $this->coupon_is_autoapply( new WC_Coupon( $coupon_code ) ) ) {
+						$wc_cart->remove_coupon( $coupon_code );
+						$coupons_removed = true;
 					}
 				}
+
+				if ( $coupons_removed ) {
+					$wc_cart->calculate_totals();
+				}
+			} finally {
+				add_action( 'woocommerce_removed_coupon', array( $wc_cart, 'calculate_totals' ), 20, 0 );
 			}
 		}
 	}
@@ -296,14 +322,14 @@ final class AutoCoupons {
 			'fields'           => 'ids',
 			'post_type'        => 'shop_coupon',
 			'post_status'      => 'publish',
-			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
-			'meta_query'       => array(
-				'relation' => 'AND',
-				array(
-					'key'   => '_acwc_discount_autoapply',
-					'value' => 1,
-				),
-			),
+		// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+																																																																																																																																																																																																																																																											'meta_query' => array(
+																																																																																																																																																																																																																																																												'relation' => 'AND',
+																																																																																																																																																																																																																																																												array(
+																																																																																																																																																																																																																																																													'key' => '_acwc_discount_autoapply',
+																																																																																																																																																																																																																																																													'value' => 1,
+																																																																																																																																																																																																																																																												),
+																																																																																																																																																																																																																																																											),
 		);
 
 		$get_automated_coupons = get_posts( $args );
@@ -403,8 +429,8 @@ final class AutoCoupons {
 	 */
 	public function woocommerce_coupon_options_save( int $coupon_id ): void {
 		if (
-			! check_ajax_referer( 'woocommerce_save_data', 'woocommerce_meta_nonce', false ) ||
-			! current_user_can( 'edit_post', $coupon_id )
+		! check_ajax_referer( 'woocommerce_save_data', 'woocommerce_meta_nonce', false ) ||
+		! current_user_can( 'edit_post', $coupon_id )
 		) {
 			return;
 		}
@@ -449,9 +475,9 @@ final class AutoCoupons {
 		$line_total    = (float) $cart_item['line_total'];
 
 		if (
-			empty( $this->acwc_applied_coupons[ $cart_item_key ] ) &&
-			wc_format_decimal( $line_subtotal, wc_get_price_decimals() ) ===
-			wc_format_decimal( $line_total, wc_get_price_decimals() )
+		empty( $this->acwc_applied_coupons[ $cart_item_key ] ) &&
+		wc_format_decimal( $line_subtotal, wc_get_price_decimals() ) ===
+		wc_format_decimal( $line_total, wc_get_price_decimals() )
 		) {
 			return $subtotal;
 		}
