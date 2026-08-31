@@ -171,7 +171,7 @@ final class AutoCoupons {
 		if ( ! is_cart() && ! is_checkout() && ! is_checkout_pay_page() && ! wp_doing_ajax() ) {
 			return;
 		}
-
+self::delete_meta();
 		if ( ! wc_coupons_enabled() || ! $this->auto_coupons_enabled() ) {
 			add_action(
 				'woocommerce_before_cart',
@@ -819,27 +819,17 @@ final class AutoCoupons {
 		 *
 		 * @var wpdb $wpdb */
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.DirectQuery
-		$acwc_meta = $wpdb->get_results(
+		$meta_ids = $wpdb->get_col(
 			$wpdb->prepare(
 				'SELECT meta_id FROM %i WHERE meta_key LIKE %s',
 				$wpdb->postmeta,
 				$wpdb->esc_like( '_acwc' ) . '%'
-			),
-			OBJECT_K
+			)
 		);
 
-		if ( ! is_array( $acwc_meta ) || empty( $acwc_meta ) ) {
-			return;
+		foreach ( $meta_ids as $meta_id ) {
+			delete_metadata_by_mid( 'post', absint( $meta_id ) );
 		}
-
-		$acwc_meta = array_keys( $acwc_meta );
-
-		array_walk(
-			$acwc_meta,
-			function ( int $mid ): void {
-				delete_metadata_by_mid( 'post', $mid );
-			}
-		);
 	}
 
 	/**
