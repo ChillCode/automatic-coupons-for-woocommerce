@@ -171,7 +171,7 @@ final class AutoCoupons {
 		if ( ! is_cart() && ! is_checkout() && ! is_checkout_pay_page() && ! wp_doing_ajax() ) {
 			return;
 		}
-self::delete_meta();
+
 		if ( ! wc_coupons_enabled() || ! $this->auto_coupons_enabled() ) {
 			add_action(
 				'woocommerce_before_cart',
