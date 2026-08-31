@@ -40,7 +40,7 @@ final class AutoCoupons {
 	/**
 	 * Coupons applied as discounts.
 	 *
-	 * @var array<array<string>>
+	 * @var array<array<bool|string>>
 	 */
 	private array $acwc_applied_coupons = array();
 
@@ -541,13 +541,13 @@ final class AutoCoupons {
 	 *
 	 * @since 1.0.0
 	 *
-	 * @param string $subtotal Subtotal.
-	 * @param array  $cart_item Cart item.
-	 * @param string $cart_item_key Cart item key.
+	 * @param string               $subtotal Subtotal.
+	 * @param array<string, float> $cart_item Cart item.
+	 * @param string               $cart_item_key Cart item key.
 	 *
-	 * @return mixed
+	 * @return string
 	 */
-	public function woocommerce_cart_item_subtotal( string $subtotal, array $cart_item, string $cart_item_key ) {
+	public function woocommerce_cart_item_subtotal( string $subtotal, array $cart_item, string $cart_item_key ): string {
 		$line_subtotal = (float) $cart_item['line_subtotal'];
 		$line_total    = (float) $cart_item['line_total'];
 
@@ -558,6 +558,10 @@ final class AutoCoupons {
 			return $subtotal;
 		}
 
+		/**
+		* Cart item data.
+		*
+		* @var array{ line_tax: float, line_subtotal_tax: float, data: \WC_Product, quantity: int, ... } $cart_item */
 		if ( ! WC()->cart->get_customer()->get_is_vat_exempt() && $cart_item['data']->is_taxable() && WC()->cart->display_prices_including_tax() ) {
 			$line_subtotal += (float) $cart_item['line_subtotal_tax'];
 			$line_total    += (float) $cart_item['line_tax'];
@@ -644,7 +648,7 @@ final class AutoCoupons {
 			$error_message = sprintf(
 				/* translators: %s: coupon code */
 				esc_html__( 'Sorry, it seems the discount "%s" is no longer valid and has been removed from your order.', 'automatic-coupons-for-woocommerce' ),
-				esc_html( $error_code )
+				esc_html( strval( $error_code ) )
 			);
 
 			switch ( $error_code ) {
@@ -815,18 +819,27 @@ final class AutoCoupons {
 		 *
 		 * @var wpdb $wpdb */
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.DirectQuery
-		$acwc_meta = array_keys( $wpdb->get_results( "SELECT meta_id FROM $wpdb->postmeta WHERE meta_key LIKE '\_acwc%'", 'OBJECT_K' ) );
+		$acwc_meta = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT meta_id FROM %i WHERE meta_key LIKE %s',
+				$wpdb->postmeta,
+				$wpdb->esc_like( '_acwc' ) . '%'
+			),
+			OBJECT_K
+		);
 
-		array_walk( $acwc_meta, array( __CLASS__, 'delete_metadata_by_mid' ) );
-	}
+		if ( ! is_array( $acwc_meta ) || empty( $acwc_meta ) ) {
+			return;
+		}
 
-	/**
-	 * Wrapper for delete_metadata_by_mid.
-	 *
-	 * @param int $mid ID for a specific meta row.
-	 */
-	private static function delete_metadata_by_mid( int $mid ): void {
-		delete_metadata_by_mid( 'post', $mid );
+		$acwc_meta = array_keys( $acwc_meta );
+
+		array_walk(
+			$acwc_meta,
+			function ( int $mid ): void {
+				delete_metadata_by_mid( 'post', $mid );
+			}
+		);
 	}
 
 	/**
