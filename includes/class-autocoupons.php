@@ -714,7 +714,7 @@ final class AutoCoupons {
 	 *
 	 * @param mixed $mid ID for a specific meta row.
 	 */
-	public static function delete_metadata_by_mid( $mid ): void {
+	private static function delete_metadata_by_mid( $mid ): void {
 		delete_metadata_by_mid( 'post', $mid );
 	}
 
