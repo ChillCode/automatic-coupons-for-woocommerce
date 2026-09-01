@@ -38,6 +38,16 @@ final class AutoCoupons {
 	);
 
 	/**
+	 * Bulk actions.
+	 *
+	 * @var string[]
+	 */
+	private static array $acwc_bulk_actions = array(
+		'acwc_mark_auto',
+		'acwc_unmark_auto',
+	);
+
+	/**
 	 * Coupons applied as discounts.
 	 *
 	 * @var array<array<bool|string>>
@@ -102,6 +112,13 @@ final class AutoCoupons {
 				array( $this, 'woocommerce_general_settings' )
 			);
 
+			add_filter(
+				'handle_bulk_actions-edit-shop_coupon',
+				array( $this, 'handle_bulk_actions_edit_shop_coupon' ),
+				10,
+				3
+			);
+
 			add_action(
 				'woocommerce_coupon_options_save',
 				array( $this, 'woocommerce_coupon_options_save' ),
@@ -129,6 +146,11 @@ final class AutoCoupons {
 				array( $this, 'transition_post_status_cache_invalidation' ),
 				10,
 				3
+			);
+
+			add_action(
+				'admin_notices',
+				array( $this, 'admin_notices' ),
 			);
 		}
 	}
@@ -251,9 +273,29 @@ final class AutoCoupons {
 			return;
 		}
 
-		if ( current_user_can( 'manage_options' ) ) {
+		if ( current_user_can( 'manage_options' ) && $this->auto_coupons_enabled() ) {
 			if (
-				'shop_coupon' === $current_screen->id && $this->auto_coupons_enabled()
+				'edit-shop_coupon' === $current_screen->id
+			) {
+				add_filter(
+					'bulk_actions-edit-shop_coupon',
+					function ( $bulk_actions ): array {
+						/**
+						 * Bulk actions array
+						 *
+						 * @var array<string, string> $bulk_actions
+						 */
+						$bulk_actions['acwc_mark_auto']   = __( 'Mark as automatic', 'automatic-coupons-for-woocommerce' );
+						$bulk_actions['acwc_unmark_auto'] = __( 'Unmark as automatic', 'automatic-coupons-for-woocommerce' );
+						return $bulk_actions;
+					}
+				);
+
+				return;
+			}
+
+			if (
+				'shop_coupon' === $current_screen->id
 			) {
 				add_action(
 					'woocommerce_coupon_options',
@@ -261,6 +303,7 @@ final class AutoCoupons {
 					10,
 					2
 				);
+
 				return;
 			}
 		}
@@ -705,6 +748,87 @@ final class AutoCoupons {
 	}
 
 	/**
+	 * Bulk handler to mark/unmark coupons as automatic.
+	 *
+	 * @param string $redirect_to URL to redirect after bulk delete action completes.
+	 * @param string $action Bulk delete action.
+	 * @param int[]  $post_ids Post IDs to apply bulk delete action.
+	 * @return mixed|string
+	 */
+	public function handle_bulk_actions_edit_shop_coupon( string $redirect_to, string $action, array $post_ids ) {
+		if ( ! in_array( $action, self::$acwc_bulk_actions, true ) ) {
+			return $redirect_to;
+		}
+
+		$discount_autoapply = ( 'acwc_mark_auto' === $action ) ? 1 : 0;
+
+		$processed = 0;
+
+		foreach ( $post_ids as $post_id ) {
+			if ( 'shop_coupon' === get_post_type( $post_id ) && current_user_can( 'edit_post', $post_id ) ) {
+				if ( update_post_meta( $post_id, '_acwc_discount_autoapply', $discount_autoapply ) ) {
+					++$processed;
+				}
+			}
+		}
+
+		if ( $processed ) {
+			$this->invalidate_automated_coupons_cache();
+
+			$redirect_to = add_query_arg(
+				array(
+					'bulk_action' => $action,
+					'changed'     => $processed,
+				),
+				$redirect_to
+			);
+		}
+
+		return esc_url_raw( $redirect_to );
+	}
+
+	/**
+	 * Display admin noticies for bulk delete actions.
+	 *
+	 * @return void
+	 */
+	public function admin_notices(): void {
+		global $post_type, $pagenow;
+
+		if ( ! isset( $GLOBALS['post'] ) || ! function_exists( 'get_current_screen' ) || 'edit.php' !== $pagenow || 'shop_coupon' !== $post_type ) {
+			return;
+		}
+
+		$bulk_action = filter_input( INPUT_GET, 'bulk_action', FILTER_SANITIZE_FULL_SPECIAL_CHARS );
+
+		if ( ! in_array( $bulk_action, self::$acwc_bulk_actions, true ) ) {
+			return;
+		}
+
+		$bulk_changed = filter_input( INPUT_GET, 'changed', FILTER_VALIDATE_INT );
+
+		if ( ! $bulk_changed ) {
+			return;
+		}
+
+		$bulk_messages = array(
+			/* translators: %s: coupon count */
+			'acwc_mark_auto'   => _n( '%s coupon marked as automatic.', '%s coupons marked as automatic.', $bulk_changed, 'automatic-coupons-for-woocommerce' ),
+			/* translators: %s: coupon count */
+			'acwc_unmark_auto' => _n( '%s coupon unmarked as automatic.', '%s coupons unmarked as automatic.', $bulk_changed, 'automatic-coupons-for-woocommerce' ),
+		);
+
+		wp_admin_notice(
+			sprintf( $bulk_messages[ $bulk_action ], number_format_i18n( $bulk_changed ) ),
+			array(
+				'id'                 => 'message',
+				'additional_classes' => array( 'updated' ),
+				'dismissible'        => true,
+			)
+		);
+	}
+
+	/**
 	 * Apply automatic coupons to WC_Cart.
 	 *
 	 * @param WC_Cart $cart Cart to apply copupons.
@@ -827,6 +951,10 @@ final class AutoCoupons {
 			)
 		);
 
+		/**
+		 * Meta IDto delete.
+		 *
+		 * @var int $meta_id */
 		foreach ( $meta_ids as $meta_id ) {
 			delete_metadata_by_mid( 'post', absint( $meta_id ) );
 		}
