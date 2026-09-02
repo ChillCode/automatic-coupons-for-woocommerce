@@ -1,7 +1,7 @@
 # Auto Coupons for WooCommerce
 Contributors: Chillcode  
 Tags: coupons, discounts, woocommerce  
-Requires at least: 6.0  
+Requires at least: 6.4  
 Tested up to: 7.1  
 Requires PHP: 8.1  
 Stable tag: 1.2.0  

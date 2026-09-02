@@ -393,7 +393,7 @@ final class AutoCoupons {
 	 * @return bool
 	 */
 	public function auto_coupons_enabled(): bool {
-		return (bool) apply_filters( 'woocommerce_enable_auto_coupons', true === filter_var( get_option( 'acwc_enable_auto_coupons' ), FILTER_VALIDATE_BOOLEAN, array( 'default' => false ) ) );
+		return (bool) apply_filters( 'acwc_enable_auto_coupons', true === filter_var( get_option( 'acwc_enable_auto_coupons' ), FILTER_VALIDATE_BOOLEAN, array( 'default' => false ) ) );
 	}
 
 	/**
