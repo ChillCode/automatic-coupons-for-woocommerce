@@ -10,6 +10,13 @@ WC tested up to: 11.0.0
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
-Apply WooCommerce coupons automatically as discounts
+Apply WooCommerce native coupons automatically as discounts
 
-[No AI agent has been involved in the development of this code]
+== Description ==
+
+Apply WooCommerce native coupons automatically as discounts without user interaction.
+
+= Features =
+
+* Allow to delete coupons already applied when they are disabled.
+* Bulk actions to mark/unmark coupon as automatic.

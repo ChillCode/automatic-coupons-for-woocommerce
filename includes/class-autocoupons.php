@@ -287,6 +287,7 @@ final class AutoCoupons {
 						 */
 						$bulk_actions['acwc_mark_auto']   = __( 'Mark as automatic', 'automatic-coupons-for-woocommerce' );
 						$bulk_actions['acwc_unmark_auto'] = __( 'Unmark as automatic', 'automatic-coupons-for-woocommerce' );
+
 						return $bulk_actions;
 					}
 				);
@@ -412,7 +413,7 @@ final class AutoCoupons {
 	 *
 	 * @return int[]
 	 */
-	public function get_automated_coupons() {
+	public function get_automated_coupons(): array {
 
 		/**
 		 * Cached automated coupons.
@@ -472,7 +473,7 @@ final class AutoCoupons {
 	 *
 	 * @return list<array<mixed>> $settings
 	 */
-	public function woocommerce_general_settings( array $settings ) {
+	public function woocommerce_general_settings( array $settings ): array {
 		$updated_settings = array();
 
 		foreach ( $settings as $section ) {
@@ -563,23 +564,6 @@ final class AutoCoupons {
 	}
 
 	/**
-	 * Main AutoCoupons Instance.
-	 *
-	 * Ensures only one instance of AutoCoupons is loaded or can be loaded.
-	 *
-	 * @since 1.0.0
-	 *
-	 * @return AutoCoupons - Main instance.
-	 */
-	public static function instance(): AutoCoupons {
-		if ( is_null( self::$acwc_instance ) ) {
-			self::$acwc_instance = new self();
-		}
-
-		return self::$acwc_instance;
-	}
-
-	/**
 	 * Returns the subtotal for a cart item adding a discount label.
 	 *
 	 * @since 1.0.0
@@ -633,7 +617,8 @@ final class AutoCoupons {
 	public function woocommerce_cart_totals_coupon_label( $label, $coupon ) {
 
 		if ( $this->coupon_is_autoapply( $coupon ) ) {
-			$label = __( 'Applied Discount', 'automatic-coupons-for-woocommerce' );
+			/* translators: %s: Coupon code */
+			$label = sprintf( __( 'Applied Discount: %s', 'automatic-coupons-for-woocommerce' ), $coupon->get_code() );
 		}
 
 		return $label;
@@ -952,7 +937,7 @@ final class AutoCoupons {
 		);
 
 		/**
-		 * Meta IDto delete.
+		 * Meta ID to delete.
 		 *
 		 * @var int $meta_id */
 		foreach ( $meta_ids as $meta_id ) {
@@ -967,6 +952,23 @@ final class AutoCoupons {
 	 */
 	private static function delete_options(): void {
 		array_walk( self::$acwc_options, 'delete_option' );
+	}
+
+	/**
+	 * Main AutoCoupons Instance.
+	 *
+	 * Ensures only one instance of AutoCoupons is loaded or can be loaded.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return AutoCoupons - Main instance.
+	 */
+	public static function instance(): AutoCoupons {
+		if ( is_null( self::$acwc_instance ) ) {
+			self::$acwc_instance = new self();
+		}
+
+		return self::$acwc_instance;
 	}
 
 	/**
