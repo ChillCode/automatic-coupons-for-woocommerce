@@ -14,7 +14,7 @@
  * Version: 1.2.0
  * Requires at least: 6.4
  * Requires PHP: 8.1
- * Author: Chillcode
+ * Author: chillcode
  * Author URI: https://github.com/chillcode/
  * License: GPLv3
  * License URI: https://www.gnu.org/licenses/gpl-3.0.html

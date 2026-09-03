@@ -273,40 +273,42 @@ final class AutoCoupons {
 			return;
 		}
 
-		if ( current_user_can( 'manage_options' ) && $this->auto_coupons_enabled() ) {
-			if (
-				'edit-shop_coupon' === $current_screen->id
+		if ( ! current_user_can( 'manage_options' ) || ! $this->auto_coupons_enabled() ) {
+			return;
+		}
+
+		if (
+			'edit-shop_coupon' === $current_screen->id
 			) {
-				add_filter(
-					'bulk_actions-edit-shop_coupon',
-					function ( $bulk_actions ): array {
-						/**
-						 * Bulk actions array
-						 *
-						 * @var array<string, string> $bulk_actions
-						 */
-						$bulk_actions['acwc_mark_auto']   = __( 'Mark as automatic', 'automatic-coupons-for-woocommerce' );
-						$bulk_actions['acwc_unmark_auto'] = __( 'Unmark as automatic', 'automatic-coupons-for-woocommerce' );
+			add_filter(
+				'bulk_actions-edit-shop_coupon',
+				function ( $bulk_actions ): array {
+					/**
+					 * Bulk actions array
+					 *
+					 * @var array<string, string> $bulk_actions
+					 */
+					$bulk_actions['acwc_mark_auto']   = __( 'Mark as automatic', 'automatic-coupons-for-woocommerce' );
+					$bulk_actions['acwc_unmark_auto'] = __( 'Unmark as automatic', 'automatic-coupons-for-woocommerce' );
 
-						return $bulk_actions;
-					}
-				);
+					return $bulk_actions;
+				}
+			);
 
-				return;
-			}
+			return;
+		}
 
-			if (
-				'shop_coupon' === $current_screen->id
+		if (
+			'shop_coupon' === $current_screen->id
 			) {
-				add_action(
-					'woocommerce_coupon_options',
-					array( $this, 'woocommerce_coupon_options' ),
-					10,
-					2
-				);
+			add_action(
+				'woocommerce_coupon_options',
+				array( $this, 'woocommerce_coupon_options' ),
+				10,
+				2
+			);
 
-				return;
-			}
+			return;
 		}
 	}
 
@@ -431,8 +433,6 @@ final class AutoCoupons {
 		$args = array(
 			'posts_per_page'   => -1,
 			'suppress_filters' => false,
-			'orderby'          => 'title',
-			'order'            => 'asc',
 			'fields'           => 'ids',
 			'post_type'        => 'shop_coupon',
 			'post_status'      => 'publish',
@@ -549,7 +549,7 @@ final class AutoCoupons {
 			return;
 		}
 
-		update_post_meta(
+		if ( update_post_meta(
 			$coupon_id,
 			'_acwc_discount_autoapply',
 			filter_input(
@@ -558,9 +558,9 @@ final class AutoCoupons {
 				FILTER_VALIDATE_BOOLEAN,
 				array( 'default' => false )
 			)
-		);
-
-		$this->invalidate_automated_coupons_cache();
+		) ) {
+			$this->invalidate_automated_coupons_cache();
+		}
 	}
 
 	/**
