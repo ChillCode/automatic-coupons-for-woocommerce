@@ -107,6 +107,7 @@ final class AutoCoupons {
 		);
 
 		if ( is_admin() ) {
+
 			add_filter(
 				'woocommerce_general_settings',
 				array( $this, 'woocommerce_general_settings' )
@@ -431,13 +432,13 @@ final class AutoCoupons {
 		$get_automated_coupons = array();
 
 		$args = array(
-			'posts_per_page'   => -1,
-			'suppress_filters' => false,
-			'fields'           => 'ids',
-			'post_type'        => 'shop_coupon',
-			'post_status'      => 'publish',
+			'posts_per_page' => -1,
+			'fields'         => 'ids',
+			'post_type'      => 'shop_coupon',
+			'post_status'    => 'publish',
+			'cache_results'  => false,
 			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
-			'meta_query'       => array(
+			'meta_query'     => array(
 				'relation' => 'AND',
 				array(
 					'key'   => '_acwc_discount_autoapply',
