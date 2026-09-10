@@ -827,56 +827,84 @@ final class AutoCoupons {
 		$coupon_noticies      = array();
 		$coupons_is_cart_page = is_cart();
 
-		foreach ( $this->acwc_available_coupons as $coupon_id ) {
-			$coupon      = new WC_Coupon( $coupon_id );
-			$coupon_code = $coupon->get_code();
+		/** Remove action temporally to prevent calculating totals on each applied coupon */
+		remove_action(
+			'woocommerce_applied_coupon',
+			array( $cart, 'calculate_totals' ),
+			20,
+		);
 
-			/** Remove all the auto coupons to prevent updated or previously applied coupons. */
-			$cart->remove_coupon( $coupon_code );
+		/** Remove action temporally to prevent calculating totals on each removed coupon */
+		remove_action(
+			'woocommerce_removed_coupon',
+			array( $cart, 'calculate_totals' ),
+			20
+		);
 
-			if ( $cart->add_discount( $coupon_code ) !== true ) {
-				continue;
-			}
+		try {
+			foreach ( $this->acwc_available_coupons as $coupon_id ) {
+				$coupon      = new WC_Coupon( $coupon_id );
+				$coupon_code = $coupon->get_code();
 
-			$discount_product = false;
-			$discount_symbol  = '%';
+				/** Remove all the auto coupons to prevent updated or previously applied coupons. */
+				$cart->remove_coupon( $coupon_code );
 
-			switch ( $coupon->get_discount_type() ) {
-				case 'percent':
-					$discount_product = true;
-					break;
-				case 'fixed_product':
-					$discount_product = true;
-					// Not a product discount but share same symbol.
-				case 'fixed_cart':
-					$discount_symbol = get_woocommerce_currency_symbol();
-			}
-
-			if ( $coupon->is_valid_for_cart() ) {
-				if ( true === $coupons_is_cart_page ) {
-					// translators: Text to show when cart coupons are applied to cart, %1$s can be amount or percentage quantity.
-					$coupon_noticies[] = sprintf( __( 'A %1$s discount has been applied to the cart.', 'automatic-coupons-for-woocommerce' ), $coupon->get_amount() . $discount_symbol );
+				if ( $cart->add_discount( $coupon_code ) !== true ) {
+					continue;
 				}
 
-				continue;
-			}
+				$discount_product = false;
+				$discount_symbol  = '%';
 
-			if ( $discount_product ) {
-				/**
-				 * Cart item data.
-				 *
-				 * @var array{data: \WC_Product, quantity: int, ...} $cart_item */
-				foreach ( $cart->get_cart() as $cart_item_key => $cart_item ) {
-					if ( $coupon->is_valid_for_product( $cart_item['data'] ) ) {
-						$this->acwc_applied_coupons[ $cart_item_key ][ $coupon_id ] = true;
+				switch ( $coupon->get_discount_type() ) {
+					case 'percent':
+						$discount_product = true;
+						break;
+					case 'fixed_product':
+						$discount_product = true;
+						// Not a product discount but share same symbol.
+					case 'fixed_cart':
+						$discount_symbol = get_woocommerce_currency_symbol();
+				}
 
-						if ( true === $coupons_is_cart_page ) {
-							// translators: Text to show when product coupons are applied to products, %1$s can be amount or percentage quantity and %2$s the name of the product.
-							$coupon_noticies[] = sprintf( __( 'A %1$s discount has been applied to the following product %2$s.', 'automatic-coupons-for-woocommerce' ), $coupon->get_amount() . $discount_symbol, $cart_item['data']->get_name() );
+				if ( $coupon->is_valid_for_cart() ) {
+					if ( true === $coupons_is_cart_page ) {
+						// translators: Text to show when cart coupons are applied to cart, %1$s can be amount or percentage quantity.
+						$coupon_noticies[] = sprintf( __( 'A %1$s discount has been applied to the cart.', 'automatic-coupons-for-woocommerce' ), $coupon->get_amount() . $discount_symbol );
+					}
+
+					continue;
+				}
+
+				if ( $discount_product ) {
+					/**
+					 * Cart item data.
+					 *
+					 * @var array{data: \WC_Product, quantity: int, ...} $cart_item */
+					foreach ( $cart->get_cart() as $cart_item_key => $cart_item ) {
+						if ( $coupon->is_valid_for_product( $cart_item['data'] ) ) {
+							$this->acwc_applied_coupons[ $cart_item_key ][ $coupon_id ] = true;
+
+							if ( true === $coupons_is_cart_page ) {
+								// translators: Text to show when product coupons are applied to products, %1$s can be amount or percentage quantity and %2$s the name of the product.
+								$coupon_noticies[] = sprintf( __( 'A %1$s discount has been applied to the following product %2$s.', 'automatic-coupons-for-woocommerce' ), $coupon->get_amount() . $discount_symbol, $cart_item['data']->get_name() );
+							}
 						}
 					}
 				}
 			}
+		} finally {
+			add_action(
+				'woocommerce_applied_coupon',
+				array( $cart, 'calculate_totals' ),
+				20,
+			);
+
+			add_action(
+				'woocommerce_removed_coupon',
+				array( $cart, 'calculate_totals' ),
+				20
+			);
 		}
 
 		array_walk(
@@ -933,7 +961,7 @@ final class AutoCoupons {
 			$wpdb->prepare(
 				'SELECT meta_id FROM %i WHERE meta_key LIKE %s',
 				$wpdb->postmeta,
-				$wpdb->esc_like( '_acwc' ) . '%'
+				'_acwc%'
 			)
 		);
 
