@@ -55,6 +55,27 @@ final class AutoCoupons {
 	private array $acwc_applied_coupons = array();
 
 	/**
+	 * Coupons notices.
+	 *
+	 * @var string[]
+	 */
+	private array $acwc_coupon_notices = array();
+
+	/**
+	 * Show coupons notices.
+	 *
+	 * @var bool
+	 */
+	private bool $acwc_show_applied_discount_notices;
+
+	/**
+	 * Applying coupons check.
+	 *
+	 * @var bool
+	 */
+	private $acwc_applying_coupons = false;
+
+	/**
 	 * Singleton instance.
 	 *
 	 * @var AutoCoupons|null
@@ -95,6 +116,8 @@ final class AutoCoupons {
 
 			return;
 		}
+
+		$this->acwc_show_applied_discount_notices = filter_var( get_option( 'acwc_show_applied_discount_notices', true ), FILTER_VALIDATE_BOOL );
 
 		add_action(
 			'wp',
@@ -340,7 +363,7 @@ final class AutoCoupons {
 
 		if ( apply_filters(
 			'acwc_remove_coupons',
-			filter_var( get_option( 'acwc_remove_coupons' ), FILTER_VALIDATE_BOOLEAN, array( 'default' => false ) )
+			filter_var( get_option( 'acwc_remove_coupons' ), FILTER_VALIDATE_BOOL, array( 'default' => false ) )
 		) ) {
 			// Remove all coupons and calculate totals.
 			$wc_cart->remove_coupons();
@@ -351,7 +374,7 @@ final class AutoCoupons {
 
 		if ( apply_filters(
 			'acwc_remove_auto_coupons',
-			filter_var( get_option( 'acwc_remove_auto_coupons' ), FILTER_VALIDATE_BOOLEAN, array( 'default' => false ) )
+			filter_var( get_option( 'acwc_remove_auto_coupons' ), FILTER_VALIDATE_BOOL, array( 'default' => false ) )
 		) ) {
 			// Remove only auto applied coupons.
 
@@ -396,7 +419,7 @@ final class AutoCoupons {
 	 * @return bool
 	 */
 	public function auto_coupons_enabled(): bool {
-		return (bool) apply_filters( 'acwc_enable_auto_coupons', true === filter_var( get_option( 'acwc_enable_auto_coupons' ), FILTER_VALIDATE_BOOLEAN, array( 'default' => false ) ) );
+		return (bool) apply_filters( 'acwc_enable_auto_coupons', true === filter_var( get_option( 'acwc_enable_auto_coupons' ), FILTER_VALIDATE_BOOL, array( 'default' => false ) ) );
 	}
 
 	/**
@@ -406,7 +429,7 @@ final class AutoCoupons {
 	 * @return bool
 	 */
 	private function coupon_is_autoapply( WC_Coupon $coupon ): bool {
-		return ( filter_var( $coupon->get_meta( '_acwc_discount_autoapply', true ), FILTER_VALIDATE_BOOLEAN ) ? true : false );
+		return ( filter_var( $coupon->get_meta( '_acwc_discount_autoapply', true ), FILTER_VALIDATE_BOOL ) ? true : false );
 	}
 
 	/**
@@ -556,7 +579,7 @@ final class AutoCoupons {
 			filter_input(
 				INPUT_POST,
 				'discount_autoapply',
-				FILTER_VALIDATE_BOOLEAN,
+				FILTER_VALIDATE_BOOL,
 				array( 'default' => false )
 			)
 		) ) {
@@ -619,7 +642,7 @@ final class AutoCoupons {
 
 		if ( $this->coupon_is_autoapply( $coupon ) ) {
 			/* translators: %s: Coupon code */
-			$label = sprintf( __( 'Applied Discount: %s', 'automatic-coupons-for-woocommerce' ), $coupon->get_code() );
+			$label = sprintf( __( 'Applied Discount: %s', 'automatic-coupons-for-woocommerce' ), wc_format_coupon_code( $coupon->get_code() ) );
 		}
 
 		return $label;
@@ -761,10 +784,14 @@ final class AutoCoupons {
 		if ( $processed ) {
 			$this->invalidate_automated_coupons_cache();
 
+			$transient_user_id = get_current_user_id();
+			$transient_name    = $action . '_bulk_notice_' . $transient_user_id;
+
+			set_transient( $transient_name, $processed, MINUTE_IN_SECONDS );
+
 			$redirect_to = add_query_arg(
 				array(
 					'bulk_action' => $action,
-					'changed'     => $processed,
 				),
 				$redirect_to
 			);
@@ -791,9 +818,13 @@ final class AutoCoupons {
 			return;
 		}
 
-		$bulk_changed = filter_input( INPUT_GET, 'changed', FILTER_VALIDATE_INT );
+		$transient_user_id = get_current_user_id();
+		$transient_name    = $bulk_action . '_bulk_notice_' . $transient_user_id;
 
-		if ( ! $bulk_changed ) {
+		$bulk_changed = get_transient( $transient_name );
+		delete_transient( $transient_name );
+
+		if ( false === $bulk_changed ) {
 			return;
 		}
 
@@ -823,28 +854,29 @@ final class AutoCoupons {
 	 */
 	private function apply_coupons( WC_Cart $cart ): void {
 		$this->acwc_applied_coupons = array();
+		$this->acwc_coupon_notices  = array();
 
-		$coupon_noticies      = array();
 		$coupons_is_cart_page = is_cart();
 
-		/** Remove action temporally to prevent calculating totals on each applied coupon */
+		$calculate_totals_callback = array( $cart, 'calculate_totals' );
+
+		/** Remove actions temporally to prevent calculating totals on each removed/applied coupon */
 		remove_action(
 			'woocommerce_applied_coupon',
-			array( $cart, 'calculate_totals' ),
+			$calculate_totals_callback,
 			20,
 		);
 
-		/** Remove action temporally to prevent calculating totals on each removed coupon */
 		remove_action(
 			'woocommerce_removed_coupon',
-			array( $cart, 'calculate_totals' ),
+			$calculate_totals_callback,
 			20
 		);
 
 		try {
 			foreach ( $this->acwc_available_coupons as $coupon_id ) {
 				$coupon      = new WC_Coupon( $coupon_id );
-				$coupon_code = $coupon->get_code();
+				$coupon_code = wc_format_coupon_code( $coupon->get_code() );
 
 				/** Remove all the auto coupons to prevent updated or previously applied coupons. */
 				$cart->remove_coupon( $coupon_code );
@@ -853,24 +885,20 @@ final class AutoCoupons {
 					continue;
 				}
 
-				$discount_product = false;
-				$discount_symbol  = '%';
-
-				switch ( $coupon->get_discount_type() ) {
-					case 'percent':
-						$discount_product = true;
-						break;
-					case 'fixed_product':
-						$discount_product = true;
-						// Not a product discount but share same symbol.
-					case 'fixed_cart':
-						$discount_symbol = get_woocommerce_currency_symbol();
-				}
+				$discount_type    = $coupon->get_discount_type();
+				$discount_product = in_array( $discount_type, array( 'percent', 'fixed_product' ), true );
+				$discount_symbol  = ( 'percent' === $discount_type ) ? '%' : get_woocommerce_currency_symbol();
 
 				if ( $coupon->is_valid_for_cart() ) {
 					if ( true === $coupons_is_cart_page ) {
-						// translators: Text to show when cart coupons are applied to cart, %1$s can be amount or percentage quantity.
-						$coupon_noticies[] = sprintf( __( 'A %1$s discount has been applied to the cart.', 'automatic-coupons-for-woocommerce' ), $coupon->get_amount() . $discount_symbol );
+						$this->acwc_coupon_notices[] = sprintf(
+							// translators: %1$s can be amount or percentage quantity.
+							__(
+								'A %1$s discount has been applied to the cart.',
+								'automatic-coupons-for-woocommerce'
+							),
+							$coupon->get_amount() . $discount_symbol
+						);
 					}
 
 					continue;
@@ -886,8 +914,15 @@ final class AutoCoupons {
 							$this->acwc_applied_coupons[ $cart_item_key ][ $coupon_id ] = true;
 
 							if ( true === $coupons_is_cart_page ) {
-								// translators: Text to show when product coupons are applied to products, %1$s can be amount or percentage quantity and %2$s the name of the product.
-								$coupon_noticies[] = sprintf( __( 'A %1$s discount has been applied to the following product %2$s.', 'automatic-coupons-for-woocommerce' ), $coupon->get_amount() . $discount_symbol, $cart_item['data']->get_name() );
+								$this->acwc_coupon_notices[] = sprintf(
+									// translators: %1$s can be amount or percentage quantity and %2$s the name of the product.
+									__(
+										'A %1$s discount has been applied to the following product %2$s.',
+										'automatic-coupons-for-woocommerce'
+									),
+									$coupon->get_amount() . $discount_symbol,
+									$cart_item['data']->get_name()
+								);
 							}
 						}
 					}
@@ -896,23 +931,24 @@ final class AutoCoupons {
 		} finally {
 			add_action(
 				'woocommerce_applied_coupon',
-				array( $cart, 'calculate_totals' ),
+				$calculate_totals_callback,
 				20,
 			);
 
 			add_action(
 				'woocommerce_removed_coupon',
-				array( $cart, 'calculate_totals' ),
+				$calculate_totals_callback,
 				20
 			);
 		}
 
-		array_walk(
-			$coupon_noticies,
-			function ( $notice ) {
+		$cart->calculate_totals();
+
+		if ( true === $this->acwc_show_applied_discount_notices ) {
+			foreach ( $this->acwc_coupon_notices as $notice ) {
 				wc_add_notice( $notice, 'notice' );
 			}
-		);
+		}
 	}
 
 	/**
@@ -924,15 +960,17 @@ final class AutoCoupons {
 	 */
 	public function woocommerce_after_calculate_totals( WC_Cart $cart ): void {
 
-		if ( is_admin() && ! defined( 'DOING_AJAX' ) ) {
+		if ( ( is_admin() && ! defined( 'DOING_AJAX' ) ) || $this->acwc_applying_coupons ) {
 			return;
 		}
 
-		if ( did_action( 'woocommerce_after_calculate_totals' ) >= 2 ) {
-			return;
-		}
+		$this->acwc_applying_coupons = true;
 
-		$this->apply_coupons( $cart );
+		try {
+			$this->apply_coupons( $cart );
+		} finally {
+			$this->acwc_applying_coupons = false;
+		}
 	}
 
 	/**
