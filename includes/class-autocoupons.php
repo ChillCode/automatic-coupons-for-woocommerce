@@ -66,7 +66,7 @@ final class AutoCoupons {
 	 *
 	 * @var bool
 	 */
-	private bool $acwc_show_applied_discount_notices;
+	private bool $acwc_show_discount_notices;
 
 	/**
 	 * Applying coupons check.
@@ -85,7 +85,7 @@ final class AutoCoupons {
 	/**
 	 * Constructor.
 	 */
-	public function __construct() {
+	private function __construct() {
 		add_action(
 			'plugins_loaded',
 			array( $this, 'plugins_loaded' )
@@ -117,7 +117,7 @@ final class AutoCoupons {
 			return;
 		}
 
-		$this->acwc_show_applied_discount_notices = filter_var( get_option( 'acwc_show_applied_discount_notices', true ), FILTER_VALIDATE_BOOL );
+		$this->acwc_show_discount_notices = filter_var( get_option( 'acwc_show_discount_notices', false ), FILTER_VALIDATE_BOOL );
 
 		add_action(
 			'wp',
@@ -523,6 +523,16 @@ final class AutoCoupons {
 				);
 
 				$updated_settings[] = array(
+					'desc'            => __( 'Show cart discount noticies', 'automatic-coupons-for-woocommerce' ),
+					'desc_tip'        => __( 'Show discount noticies on cart page when auto coupons are applied', 'automatic-coupons-for-woocommerce' ),
+					'id'              => 'acwc_show_discount_notices',
+					'default'         => 'no',
+					'type'            => 'checkbox',
+					'checkboxgroup'   => '',
+					'show_if_checked' => 'yes',
+				);
+
+				$updated_settings[] = array(
 					'desc'            => __( 'Remove all coupons already applied automatically to carts', 'automatic-coupons-for-woocommerce' ),
 					'desc_tip'        => __( 'Remove all coupons already applied automatically to carts when "Allow coupons to apply automatically" is unchecked.', 'automatic-coupons-for-woocommerce' ),
 					'id'              => 'acwc_remove_auto_coupons',
@@ -642,7 +652,7 @@ final class AutoCoupons {
 
 		if ( $this->coupon_is_autoapply( $coupon ) ) {
 			/* translators: %s: Coupon code */
-			$label = sprintf( __( 'Applied Discount: %s', 'automatic-coupons-for-woocommerce' ), wc_format_coupon_code( $coupon->get_code() ) );
+			$label = sprintf( __( 'Discount: %s', 'automatic-coupons-for-woocommerce' ), wc_format_coupon_code( $coupon->get_code() ) );
 		}
 
 		return $label;
@@ -787,7 +797,7 @@ final class AutoCoupons {
 			$transient_user_id = get_current_user_id();
 			$transient_name    = $action . '_bulk_notice_' . $transient_user_id;
 
-			set_transient( $transient_name, $processed, MINUTE_IN_SECONDS );
+			set_transient( $transient_name, $processed, HOUR_IN_SECONDS );
 
 			$redirect_to = add_query_arg(
 				array(
@@ -827,6 +837,8 @@ final class AutoCoupons {
 		if ( false === $bulk_changed ) {
 			return;
 		}
+
+		$bulk_changed = absint( $bulk_changed );
 
 		$bulk_messages = array(
 			/* translators: %s: coupon count */
@@ -944,7 +956,7 @@ final class AutoCoupons {
 
 		$cart->calculate_totals();
 
-		if ( true === $this->acwc_show_applied_discount_notices ) {
+		if ( true === $this->acwc_show_discount_notices ) {
 			foreach ( $this->acwc_coupon_notices as $notice ) {
 				wc_add_notice( $notice, 'notice' );
 			}
@@ -959,7 +971,6 @@ final class AutoCoupons {
 	 * @return void
 	 */
 	public function woocommerce_after_calculate_totals( WC_Cart $cart ): void {
-
 		if ( ( is_admin() && ! defined( 'DOING_AJAX' ) ) || $this->acwc_applying_coupons ) {
 			return;
 		}
@@ -1002,6 +1013,15 @@ final class AutoCoupons {
 				'_acwc%'
 			)
 		);
+
+		if ( 1000 > count( $meta_ids ) ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.DirectQuery
+			$wpdb->query( "DELETE FROM $wpdb->postmeta WHERE meta_key LIKE '\_acwc%'" );
+
+			wp_cache_flush();
+
+			return;
+		}
 
 		/**
 		 * Meta ID to delete.
