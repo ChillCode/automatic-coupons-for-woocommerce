@@ -292,7 +292,7 @@ final class AutoCoupons {
 	 * @return void
 	 */
 	public function enqueue_scripts() {
-		$script_path = plugin_dir_path( ACWC_PLUGIN_FILE ) . 'assets/js/index.js';
+		$script_path = plugin_dir_path( ACWC_PLUGIN_FILE ) . 'assets/js/acwc-extension.js';
 
 		if ( ! file_exists( $script_path ) ) {
 			return;
