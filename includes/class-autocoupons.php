@@ -232,6 +232,8 @@ final class AutoCoupons {
 			return;
 		}
 
+		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
+
 		$this->acwc_available_coupons = $this->get_automated_coupons();
 
 		if ( ! empty( $this->acwc_available_coupons ) ) {
@@ -282,6 +284,32 @@ final class AutoCoupons {
 				3
 			);
 		}
+	}
+
+	/**
+	 * Enqueue scripts.
+	 *
+	 * @return void
+	 */
+	public function enqueue_scripts() {
+		$script_path = plugin_dir_path( ACWC_PLUGIN_FILE ) . 'assets/js/index.js';
+
+		if ( ! file_exists( $script_path ) ) {
+			return;
+		}
+
+		$asset_file = array(
+			'dependencies' => array( 'wc-blocks-checkout' ),
+			'version'      => '0af48c0c20b510596f45',
+		);
+
+		wp_enqueue_script(
+			'acwc-blocks-integration',
+			plugins_url( 'assets/js/acwc-extension.js', ACWC_PLUGIN_FILE ),
+			$asset_file['dependencies'],
+			$asset_file['version'],
+			true
+		);
 	}
 
 	/**
