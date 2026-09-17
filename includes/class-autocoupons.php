@@ -298,14 +298,16 @@ final class AutoCoupons {
 			return;
 		}
 
-		$asset_file = array(
+		$asset_path = plugin_dir_path( ACWC_PLUGIN_FILE ) . 'assets/js/acwc-extension.asset.php';
+
+		$asset_file = file_exists( $asset_path ) ? require_once $asset_path : array(
 			'dependencies' => array( 'wc-blocks-checkout' ),
-			'version'      => '0af48c0c20b510596f45',
+			'version'      => ACWC_PLUGIN_VERSION,
 		);
 
 		wp_enqueue_script(
 			'acwc-blocks-integration',
-			plugins_url( 'assets/js/acwc-extension.js', ACWC_PLUGIN_FILE ),
+			plugins_url( 'assets/js/', ACWC_PLUGIN_FILE ) . 'acwc-extension.js',
 			$asset_file['dependencies'],
 			$asset_file['version'],
 			true

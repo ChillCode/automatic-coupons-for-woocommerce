@@ -1,1 +1,1 @@
-(()=>{"use strict";(0,window.wc.blocksCheckout.registerCheckoutFilters)("acwc-extension",{coupons:(c,e,o)=>(console.log(c),c.filter(c=>!(!c.label||c.label.match(/acwc(?:_\S+)+/))))})})();
+(()=>{"use strict";(0,window.wc.blocksCheckout.registerCheckoutFilters)("acwc-extension",{coupons:(c,e,t)=>c.filter(c=>!(!c.label||c.label.match(/acwc(?:_\S+)+/)))})})();
